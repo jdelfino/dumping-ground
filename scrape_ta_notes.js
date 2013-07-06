@@ -93,7 +93,7 @@ function sanitize_(xmlstring){
   rval = rval.replace(/<li>\s*/g, '*')
   rval = rval.replace(/\s*<\/li>\s*/g, ' ')
   rval = rval.replace(/&amp;/g, '&')
-  rval = rval.replace(/(\r?\n)(\r?\n)/g, '\n')
+  rval = rval.replace(/(\r?\n)(\r?\n)*/g, '\n')
   // blindly strip all other tags
   rval = rval.replace(/<[^>]*>/g, '')
   return rval
