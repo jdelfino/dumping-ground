@@ -164,7 +164,7 @@ function get_trail_details_(url, info_map){
 
   row_divs = get_div_(html, 
                      ['id', 'class', 'class', 'id', 'id', 'class', 'class'], 
-                     ['main', 'container', 'trail-region', 'track-details', 'additional-info_rmation', 'row-divider', 'row']);
+                     ['main', 'container', 'trail-region', 'track-details', 'additional-information', 'row-divider', 'row']);
   extract_sections_(row_divs, info_map)
   
   return info_map
@@ -303,6 +303,9 @@ function time_to_hours_(time_str) {
   var val = parse_fraction_(match[0].trim());
   
   if(ends_with_(time_str, 'days')) {
+    val *= 8; 
+  }
+  if(ends_with_(time_str, 'day')) {
     val *= 8; 
   }
   debug_("time to hours: " + time_str + "::::" + val);
