@@ -48,6 +48,7 @@ function make_sections_() {
   sections['Tramping Standard'] = '';
   sections['Description'] = '';
   sections['Potential Hazards'] = '';
+  sections['Extra Info'] = '';
   sections['Requirements'] = '';
   sections['Environment'] = '';
   sections['Amenities (Start)'] = '';
@@ -65,7 +66,9 @@ function get_trail_links_(row_div){
   child_divs = row_div.getElements('div')
   var rval = []
   for(var i = 0; i < child_divs.length; i += 2) {
-    rval.push(child_divs[i+1].getElement('a').getAttribute('href').getValue())
+    if(child_divs[i+1].getElement('a')) {
+      rval.push(child_divs[i+1].getElement('a').getAttribute('href').getValue())
+    }
   }
   return rval
 }
@@ -222,6 +225,7 @@ function dump_rows_(sections, target_sheet) {
     range.setFormulaR1C1('SUM(R1C[-1]:R[0]C[-1])');
     
     push_if_full_('', sections['Description'], target_sheet);
+    push_if_full_('Extra: ', sections['Extra Info'], target_sheet);
     push_if_full_('Hazards: ', sections['Potential Hazards'], target_sheet);
 
     amenities = ''
