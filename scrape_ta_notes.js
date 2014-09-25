@@ -12,10 +12,12 @@ function make_all_notes() {
   if(!target_sheet){
     target_sheet = ss.insertSheet(name);
   }
-
+  // fill first row, clear out rest of the sheet, set column widths, etc
   prep_sheet_(target_sheet)
   
+  // hardcoded list of all regions
   all_regions = get_region_list_()
+  
   for(var i = 0; i < all_regions.length; i++){
     info_("Processing region " + all_regions[i])
     
@@ -28,13 +30,16 @@ function make_all_notes() {
       sections = make_sections_()
       get_trail_details_(urls[j], sections)
       dump_rows_(sections, target_sheet)
-      SpreadsheetApp.flush()
+      SpreadsheetApp.flush()  
     }
+    SpreadsheetApp.flush()  
   }
   finish_sheet_(target_sheet)
 }
 
 function get_region_list_() {
+  //return ['northland', 'auckland', 'waikato', 'whanganui', 'manawatu', 'wellington']
+  //return ['nelsonmarlborough', 'canterbury', 'otago', 'southland']
   return ['northland', 'auckland', 'waikato', 'whanganui', 'manawatu', 'wellington', 'nelsonmarlborough', 'canterbury', 'otago', 'southland']
 }
 
@@ -48,6 +53,7 @@ function make_sections_() {
   sections['Tramping Standard'] = '';
   sections['Description'] = '';
   sections['Potential Hazards'] = '';
+  sections['Extra Info'] = '';
   sections['Requirements'] = '';
   sections['Environment'] = '';
   sections['Amenities (Start)'] = '';
@@ -62,10 +68,12 @@ function make_sections_() {
 
 function get_trail_links_(row_div){
   // extract the link for non-closed trails
-  child_divs = row_div.getElements('div')
+  var child_divs = row_div.getElements('div')
   var rval = []
   for(var i = 0; i < child_divs.length; i += 2) {
-    rval.push(child_divs[i+1].getElement('a').getAttribute('href').getValue())
+    if(child_divs[i+1].getElement('a')) {
+      rval.push(child_divs[i+1].getElement('a').getAttribute('href').getValue())
+    }
   }
   return rval
 }
@@ -75,6 +83,8 @@ function get_trail_index_(region_name){
   var xml = UrlFetchApp.fetch('http://www.teararoa.org.nz/' + region_name + '/').getContentText()
   var xmlDoc = Xml.parse(xml, true);
   var html = xmlDoc.getElement().getElement('body')
+  
+  // split the different parts of information into usable pieces
   var row_divs = get_div_(html, 
                          ['id', 'class', 'class', 'class', 'id', 'id', 'class'], 
                          ['main', 'container', 'trail-region', 'tab-content', 'trail-index', 'trail-index-body', 'row']);
@@ -105,7 +115,9 @@ function extract_text_(elem){
   var text = elem.getText()
   var elems = elem.getElements()
   for(var i = 0; i < elems.length; i++){
-    text += sanitize_(elems[i].toXmlString())
+    if (elems[i] != "none") {
+			text += sanitize_(elems[i].toXmlString())
+    }
   }
   return text.trim()
 }
@@ -122,7 +134,6 @@ function extract_sections_(row_divs, info_map){
     var body = extract_text_(row_children[1])
     info_map[heading] = body
   }
-
 }
 
 function get_trail_details_(url, info_map){
@@ -135,11 +146,11 @@ function get_trail_details_(url, info_map){
                            ['id', 'class', 'class'], 
                            ['main', 'container', 'trail-region']);
   var header = parent_div[0].getElement('h2')
-  section_name = extract_text_(header)
+  var section_name = extract_text_(header)
         
   if(ends_with_(section_name, 'CLOSED')){
     debug_("Trail " + url + " is CLOSED")
-    bypass_div = get_div_(parent_div[0], 
+    var bypass_div = get_div_(parent_div[0], 
                          ['class', 'class'], 
                          ['row', 'span10'])
     info_map['Bypass'] = extract_text_(bypass_div[0])
@@ -150,9 +161,10 @@ function get_trail_details_(url, info_map){
   info_map['Section Name'] = section_name.slice(0, -7) // strip off ' - OPEN'
 
   // getting to this the normal way is too hard, just regex it out
-  xml_string = parent_div[0].toXmlString()
-  maps = xml_string.match(/map\d\d\d/)
-  if(maps != null){
+  var xml_string = parent_div[0].toXmlString()
+  info_("xml_string " + xml_string)
+  var maps = xml_string.match(/map[0-9]{3}/)
+  if(maps != null) {
     info_map['Maps'] = maps.join(',')
   }
   
@@ -203,9 +215,9 @@ function dump_rows_(sections, target_sheet) {
 
     row1 = []
     row1.push(distance);
-    row1.push('cum km placeholder')
+    row1.push('cum km')
     row1.push(hours)
-    row1.push('cum hours placeholder')
+    row1.push('cum hours')
     row1.push(sections['Section Name'] +
               '\n[Maps]: ' + sections['Maps'] +
               '; [Start]: ' + sections['Northern Start'] + 
@@ -222,6 +234,7 @@ function dump_rows_(sections, target_sheet) {
     range.setFormulaR1C1('SUM(R1C[-1]:R[0]C[-1])');
     
     push_if_full_('', sections['Description'], target_sheet);
+    push_if_full_('Extra: ', sections['Extra Info'], target_sheet);
     push_if_full_('Hazards: ', sections['Potential Hazards'], target_sheet);
 
     amenities = ''
@@ -251,7 +264,7 @@ function format_section_(target_sheet, first_row){
 function prep_sheet_(target_sheet){
   // clear out the sheet, set column widths, etc
   target_sheet.clear()
-  target_sheet.appendRow(['km','cum. km', 'hrs', 'cum. hrs', 'Route info']);
+  target_sheet.appendRow(['km','cum', 'hrs', 'cum', 'Route info']);
   target_sheet.setColumnWidth(1, 22);
   target_sheet.setColumnWidth(2, 38);
   target_sheet.setColumnWidth(3, 22);
@@ -270,6 +283,9 @@ function prep_sheet_(target_sheet){
 function finish_sheet_(target_sheet){
   range = target_sheet.getRange(2, 1, target_sheet.getLastRow(), target_sheet.getLastColumn())
   range.setFontSize(8);
+  range = target_sheet.getRange(1, 5, target_sheet.getLastRow(), 5)
+  range.setWrap(true)
+  range = target_sheet.setFrozenRows(1);
 }
 
 // GENERAL UTILITIES
@@ -305,8 +321,11 @@ function time_to_hours_(time_str) {
   if(ends_with_(time_str, 'days')) {
     val *= 8; 
   }
-  if(ends_with_(time_str, 'day')) {
-    val *= 8; 
+  else if(ends_with_(time_str, 'day')) {
+    val = 8; 
+  }
+  else if(ends_with_(time_str, 'Day')) {
+    val = 8; 
   }
   debug_("time to hours: " + time_str + "::::" + val);
   return val;
